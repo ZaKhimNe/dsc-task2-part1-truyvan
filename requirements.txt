@@ -1,0 +1,14 @@
+# Đã dùng thật (verify bằng grep import thực tế trên toàn bộ src/pipeline/experiments/kaggle_*)
+nltk>=3.8
+rouge_score>=0.1.2
+rank_bm25>=0.2.2           # src/b2_retrieval/ — Layer 1 BM25
+underthesea>=6.8.0         # src/b2_retrieval/ (tokenizer tiếng Việt, đã chốt 06/08)
+numpy>=1.24
+torch>=2.0                 # Layer 2 (bi-encoder) + Layer 3 (reranker) — CPU đủ cho code local,
+                            # GPU (Kaggle) cần cho nhúng full corpus/rerank full candidate, xem
+                            # kaggle_layer2/README.md và kaggle_layer3/README.md
+sentence-transformers>=2.7 # SentenceTransformer (Layer 2, BAAI/bge-m3) + CrossEncoder (Layer 3,
+                            # BAAI/bge-reranker-v2-m3)
+
+# Sau khi cài, chạy 1 lần để tải resource cho meteor_score:
+#   python -c "import nltk; nltk.download('wordnet')"

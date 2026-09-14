@@ -1,0 +1,42 @@
+# Output tự sinh của pipeline B (tái tạo được, xem README.md mục "Tái tạo dữ liệu")
+/outputs/
+
+# Candidate đã upload lên Kaggle (tự sinh lại bằng pipeline/build_layer3_candidates*.py)
+/kaggle_layer2/upload/
+/kaggle_layer3/upload/
+
+# Kết quả tải về từ Kaggle để nhầm chỗ / thư mục tạm
+/layer3_results/
+
+# Script tái tạo ablation ĐÃ ĐÓNG (RRF, max_per_doc, granularity Khoản, Layer1.5
+# BM25...) — giữ local để tự verify khi cần, không push vì không dùng trong
+# production pipeline hiện tại, số liệu đã có sẵn trong docs/EXPERIMENT_LOG.md
+/pipeline/build_expensive_indexes.py
+/pipeline/build_khoan_doc_run.py
+/pipeline/build_layer15_run.py
+/pipeline/build_layer2_dense_run.py
+/pipeline/build_layer3_rerank_run.py
+/pipeline/build_retrieval_runs.py
+/pipeline/eval_retrieval_runs.py
+/pipeline/eval_hybrid_designs.py
+
+# Harness chấm điểm cá nhân — thuộc phạm vi A (chấm điểm/oracle eval), chưa
+# từng được gọi trong pipeline B (verify bằng grep) — giữ local không push
+/src/common/scoring.py
+
+# Kế hoạch nâng cấp/plan nội bộ — giữ riêng, không public trong repo này.
+/docs/PLAN_NANG_CAP.md
+/docs/PLAN_PUBLIC_OFFICIAL.md
+/docs/KE_HOACH_TIEP_THEO_B.md
+
+# Nhật ký thực nghiệm thô + báo cáo kỹ thuật đầy đủ + audit dữ liệu — giữ
+# riêng dạng tài liệu nội bộ (PDF, gửi trực tiếp cho team giống cách Team IR
+# làm), không public trong repo này.
+/docs/EXPERIMENT_LOG.md
+/docs/BAO_CAO_TONG_HOP_B.md
+/docs/DATA_NOTES.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
