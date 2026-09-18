@@ -1,10 +1,14 @@
 """
 Đánh giá Layer 3 ở ĐÚNG CẤP KHOẢN, trên TẬP GIỮ KÍN (800 câu `data/train.json`,
 chưa từng dùng để tune bất cứ gì) — bước xác nhận cuối cùng trước khi chốt
-Layer 3 vào kiến trúc chính thức. Cùng cách làm với `eval_layer3_rerank.py`
-(so Hit@K TRƯỚC/SAU rerank), nhưng đổi gold từ context_id cấp văn bản
-(`data_retrieve`) sang nhãn B0 CẤP KHOẢN (`outputs/b0_labels_train_heldout.json`,
-lọc confidence>=0.6 — n=198 câu đáng tin).
+Layer 3 vào kiến trúc chính thức. Gold = nhãn B0 CẤP KHOẢN
+(`outputs/b0_labels_train_heldout.json`, lọc confidence>=0.6 — n=198 câu đáng tin).
+
+CẬP NHẬT 15/09/2026 (Phase 2a): đổi từ so "TRƯỚC/SAU rerank" (dense vs Layer 3)
+sang so **model reranker CŨ vs MỚI** — câu hỏi thật đang cần trả lời là
+"AITeamVN/Vietnamese_Reranker có tốt hơn BAAI/bge-reranker-v2-m3 không", không
+phải "có nên rerank hay không" (đã trả lời rồi, luôn luôn có rerank).
+`RERANK_PATH_OLD` là bản backup trước khi ghi đè (xem PLAN_NANG_CAP.md mục 2a).
 
 Chạy: python pipeline/eval_layer3_rerank_heldout.py
 """
@@ -17,8 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.common import config
 
-CANDIDATES_PATH = Path("kaggle_layer3/upload/layer3_candidates_heldout.jsonl")
-RERANK_PATH = Path("outputs/layer3/L3_rerank_heldout.jsonl")
+RERANK_PATH_OLD = Path("outputs/layer3/L3_rerank_heldout_bge_v2m3.jsonl")  # BAAI/bge-reranker-v2-m3
+RERANK_PATH_NEW = Path("outputs/layer3/L3_rerank_heldout.jsonl")  # AITeamVN/Vietnamese_Reranker
 LABELS_PATH = config.OUTPUTS_DIR / "b0_labels_train_heldout.json"
 KS = [1, 3, 5, 10, 20, 30, 50]
 CONFIDENCE_TRUST = config.B0_CONFIDENCE_TRUST
@@ -41,19 +45,9 @@ def load_gold() -> dict[str, set[str]]:
     return gold
 
 
-def load_before() -> dict[str, list[str]]:
-    """Thứ tự TRƯỚC rerank = thứ tự candidate đã gửi Kaggle (dense-ranked gốc)."""
+def load_ranked(path: Path) -> dict[str, list[str]]:
     result = {}
-    with open(CANDIDATES_PATH, encoding="utf-8") as f:
-        for line in f:
-            r = json.loads(line)
-            result[r["qid"]] = [c["unit_id"] for c in r["candidates"]]
-    return result
-
-
-def load_after() -> dict[str, list[str]]:
-    result = {}
-    with open(RERANK_PATH, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             r = json.loads(line)
             result[r["qid"]] = [u["unit_id"] for u in r["ranked_units"]]
@@ -91,12 +85,13 @@ def mrr(runs: dict[str, list[str]], gold: dict[str, set[str]]) -> float:
 
 def main():
     gold = load_gold()
-    before = load_before()
-    after = load_after()
+    before = load_ranked(RERANK_PATH_OLD)  # BAAI/bge-reranker-v2-m3
+    after = load_ranked(RERANK_PATH_NEW)   # AITeamVN/Vietnamese_Reranker
     print(f"n câu giữ kín có nhãn Khoản đáng tin (confidence>={CONFIDENCE_TRUST}): {len(gold)}")
+    print(f"Cũ = {RERANK_PATH_OLD.name} (BAAI/bge-reranker-v2-m3)")
+    print(f"Mới = {RERANK_PATH_NEW.name} (AITeamVN/Vietnamese_Reranker)")
 
-    # sàn nhiễu: bootstrap CI của Hit@3 riêng "after" để biết biên độ dao động tự nhiên ở n này
-    print(f"\n{'K':>4} | {'Trước (dense)':>15} | {'Sau (Layer 3)':>15} | {'Chênh lệch':>12} | {'95% CI chênh lệch':>20}")
+    print(f"\n{'K':>4} | {'Cũ (BAAI)':>15} | {'Mới (AITeamVN)':>15} | {'Chênh lệch':>12} | {'95% CI chênh lệch':>20}")
     print("-" * 85)
     for k in KS:
         h_before = hit_at_k(before, gold, k)
@@ -110,6 +105,9 @@ def main():
     mrr_after = mrr(after, gold)
     print(f"{'MRR':>4} | {mrr_before:>14.4f} | {mrr_after:>14.4f} | {mrr_after - mrr_before:>+11.4f}")
     print("\n(*** = khoảng tin cậy 95% không chứa 0, chênh lệch có ý nghĩa thống kê)")
+    print("\nNgưỡng đã đặt trước (PLAN_NANG_CAP.md, Phase 2a): Hit@3 tăng >=2 điểm% -> đổi model.")
+    diff3 = hit_at_k(after, gold, 3) - hit_at_k(before, gold, 3)
+    print(f"Hit@3 chenh lech: {diff3:+.1%} -> {'DOI MODEL MOI' if diff3 >= 0.02 else ('GIU MODEL CU (trong bien +-2%)' if diff3 > -0.02 else 'GIU MODEL CU (moi te hon)')}")
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ import torch
 from pathlib import Path
 from sentence_transformers import SentenceTransformer
 
-INPUT_DIR = Path("/kaggle/input/dsc-legalqa-b2-layer2-input")  # SỬA tên dataset nếu khác
+INPUT_DIR = Path("/kaggle/input/datasets/ngmaidnghi/dsc-legalqa-b2-layer2-inputtt")  # xác nhận thật 16/09 qua !find — CHÚ Ý 3 chữ "t", KHÁC dataset "...-inputt" (2 chữ t, chỉ chứa file layer3)
 # LƯU Ý (đo thật 13/08/2026): 1 số tài khoản Kaggle mount dataset kèm tiền tố
 # "datasets/<username>/" thay vì thẳng "/kaggle/input/<dataset-slug>/" — nếu
 # gặp FileNotFoundError dù dataset đã add đúng, chạy `!find /kaggle/input/ -maxdepth 4`
@@ -31,8 +31,14 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print("Device:", DEVICE)
 
-# %% CELL 3 — load model BGE-M3 (~568M tham số, trong ngân sách <=0.7B)
-MODEL_NAME = "BAAI/bge-m3"
+# %% CELL 3 — load model bi-encoder (Phase 2b, đổi 16/09/2026)
+# BAAI/bge-m3 -> AITeamVN/Vietnamese_Embedding — DÙNG BẢN v1, KHÔNG dùng v2
+# (Team IR đo v1 thắng v2 ở mọi chỉ số trên Zalo Legal 2021). Số đo Team IR:
+# +4,33 R@1, +3,83 R@5 trên dev300 — nhưng CẢNH BÁO (Team IR R5.3): chính họ
+# đo dev +3,83 nhưng LB chỉ +0,11, đừng kỳ vọng số dev chuyển thẳng sang LB.
+# Ngưỡng đặt trước (PLAN_NANG_CAP.md Phase 2b): recall rổ top-50 cấp Khoản
+# hiện 86,4% — rổ mới <86,4% thì BỎ NGAY, không nộp; >=88,4% (+2) mới đi tiếp.
+MODEL_NAME = "AITeamVN/Vietnamese_Embedding"
 model = SentenceTransformer(MODEL_NAME, device=DEVICE)
 model.max_seq_length = 1024  # đa số Khoản ngắn (median 222 ký tự ~ 50-70 token) — cap để
                               # tránh unit_type=doc_fallback siêu dài (hiếm, 0.3%) làm chậm cả batch

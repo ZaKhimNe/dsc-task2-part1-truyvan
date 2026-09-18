@@ -22,7 +22,11 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print("Device:", DEVICE)
 
 # %% CELL 3 — load model reranker (~568M tham số)
-MODEL_NAME = "BAAI/bge-reranker-v2-m3"
+# Đổi 15/09/2026 (Phase 2a): BAAI/bge-reranker-v2-m3 -> AITeamVN/Vietnamese_Reranker.
+# Số đo Team IR (Phụ lục A, 15.000 cặp giống hệt nhau): +3,34 R@1 (0,5017 vs 0,4683),
+# -0,50 R@5 (0,7467 vs 0,7517), cùng cỡ tham số (0,568B), cùng tốc độ (~0,058s/cặp).
+# Đánh đổi hợp lý cho ta vì TOP_N nhỏ (3) nên R@1/R@3 quan trọng hơn R@5.
+MODEL_NAME = "AITeamVN/Vietnamese_Reranker"
 model = CrossEncoder(MODEL_NAME, max_length=512, device=DEVICE)
 print("Model loaded.")
 

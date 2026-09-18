@@ -28,6 +28,8 @@
 /docs/PLAN_NANG_CAP.md
 /docs/PLAN_PUBLIC_OFFICIAL.md
 /docs/KE_HOACH_TIEP_THEO_B.md
+/docs/PLAN_KE_THUA_TEAM_IR.md
+/docs/TONG_HOP_VERSION_VA_KE_HOACH.md
 
 # Nhật ký thực nghiệm thô + báo cáo kỹ thuật đầy đủ + audit dữ liệu — giữ
 # riêng dạng tài liệu nội bộ (PDF, gửi trực tiếp cho team giống cách Team IR
@@ -35,6 +37,8 @@
 /docs/EXPERIMENT_LOG.md
 /docs/BAO_CAO_TONG_HOP_B.md
 /docs/DATA_NOTES.md
+/docs/BAO_CAO_PHASE_CONTEXT_VA_MODEL_15_09.md
+/docs/BAO_CAO_V1_DEN_V5.md
 
 # Python
 __pycache__/
