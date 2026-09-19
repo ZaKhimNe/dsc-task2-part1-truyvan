@@ -37,26 +37,13 @@ nhiều chữ hơn 3 đoạn. Nên **+19,0 và +17,6 không phải "hai lần đ
 nhau"**; chúng là hai hiệu ứng trên hai bài toán khác độ khó. Đừng lấy trung bình, đừng coi
 cái này xác nhận cái kia.
 
-## E4 — trạng thái nối Kaggle (18/09 22:35)
+## E4 — điều kiện chạy nhúng
 
 | | |
 |---|---|
-| Kernel | `zakhim/dsc-legalqa-e4-title-embedding`, private, GPU T4 |
-| Đẩy lúc | 21:24, xác minh `RUNNING` qua API |
-| CLI | `retrieval/.venv/Scripts/kaggle.exe` 2.2.4 — **cài trong venv, KHÔNG toàn máy**, nên `which kaggle` rỗng là đúng |
-| Token | `C:\Users\GIGA\.kaggle\access_token` (đường tuyệt đối — đừng tra qua `~`, `~` khác nhau giữa Git Bash và WSL/container) |
-| Máy | `DESKTOP-UTRKKMD`, Windows 11 + MINGW64 |
+| Môi trường | Kaggle kernel private, GPU T4 |
+| CLI | `kaggle` 2.2.4 cài **trong venv**, KHÔNG toàn máy — nên `which kaggle` rỗng là đúng |
 | Nhúng bare | xong 2.597s, shape (432.473, 1024) — **432.473 khớp E1** |
-| Bảo mật | token đã từng dán vào khung chat → **thu hồi và tạo lại** ở kaggle.com/settings |
-
-## Luật chia file khi hai phiên chạy song song
-
-| Phiên | Giữ file nào |
-|---|---|
-| Phiên có Kaggle (máy `DESKTOP-UTRKKMD`) | `pipeline/eval_*`, `pipeline/measure_dup_unit_id_damage.py`, **cả hai file `docs/` này** |
-| Phiên kia | `src/b6_context_package/format_unit.py`, `src/b6_context_package/package.py`, `pipeline/eval_quotation_format_gap.py`, `pipeline/build_qa_packages_public_v8_tieu_de_khoan.py` |
-
-Chia theo **file**, không chia theo việc. Muốn ghi ra ngoài phần của mình thì báo trước.
 
 ## Còn thiếu từ plan v2
 

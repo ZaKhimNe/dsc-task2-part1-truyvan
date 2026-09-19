@@ -1,12 +1,15 @@
-# DSC 2026 — LegalQA Task 2 — Thành viên B (Retrieval & Chọn đoạn trích)
+# DSC 2026 — LegalQA Task 2 — Truy vấn & Xếp hạng lại
 
-Đây là phần **B** trong hệ thống 4 mảnh của nhóm (A: chấm điểm/oracle eval, B: retrieval — thư mục này, C: generator, D/trưởng nhóm: điều phối chung).
+Phần **truy hồi + chọn đoạn trích** (Thành viên B) của hệ thống LegalQA Task 2:
+parse văn bản luật, hybrid retrieval (BM25 ∥ dense BGE-M3 → cross-encoder
+rerank), đo recall, chọn Khoản, đóng gói schema cho Generator.
 
-> Thư mục này là 1 module trong monorepo — xem [`README.md` gốc](../README.md)
-> để biết B khớp với `eval_harness/` (D) và `qa_generator/` (C) thế nào. Mọi
-> lệnh dưới đây chạy với **CWD = thư mục này** (`retrieval/`), không phải gốc
-> repo — `data/`, `data123/`, `data_retrieve/` nằm ở **`../`** (dùng chung với
-> C/D, xem README gốc).
+Repo này tách riêng từ monorepo của nhóm — chỉ chứa phần B. Phần sinh câu trả
+lời (C) và bộ chấm điểm nội bộ (D) nằm ở repo khác.
+
+> Mọi lệnh dưới đây chạy với **CWD = gốc repo này**. Dữ liệu BTC cấp nằm
+> **ngoài repo**, ngang hàng với thư mục gốc (xem `.gitignore`): `../data/`,
+> `../data123/`, `../data_retrieve/`.
 
 ## Bắt đầu từ đâu
 
@@ -14,8 +17,10 @@
 2. Docstring đầu mỗi file `.py` — spec hiện tại của riêng module đó (input/output/workflow).
 3. `README.md` trong từng thư mục `src/bN_*/` — câu hỏi còn mở, lịch sử quyết định của module đó.
 
-Nhật ký thực nghiệm chi tiết + báo cáo kỹ thuật đầy đủ được giữ riêng (tài liệu nội bộ, không
-trong repo này) — hỏi trực tiếp nếu cần đào sâu hơn những gì `SYSTEM_SCAFFOLD.md` tóm tắt.
+4. **[`docs/BAO_CAO_THI_NGHIEM_RETRIEVAL.md`](docs/BAO_CAO_THI_NGHIEM_RETRIEVAL.md)**
+   — báo cáo mọi thí nghiệm đã chạy trên truy vấn và reranker: ngưỡng đặt trước,
+   kết quả, quyết định, **các hướng đã đóng (đừng thử lại)**, và cấu hình chốt.
+   Đọc trước khi nghĩ hướng nâng cấp mới.
 
 ## Việc B làm (tóm tắt 1 câu mỗi bước)
 
@@ -30,11 +35,36 @@ B6  — đóng gói kết quả B1+B2+B4 thành schema Generator (C) đọc đư
 B7  — KHÔNG PHẢI VIỆC CỦA B (thuộc A) — B chỉ cần output đúng schema cho B7 dùng
 ```
 
+## Cấu hình chốt sau đợt thí nghiệm 19/09/2026
+
+| Nút | Trước | Sau | Căn cứ |
+|---|---|---|---|
+| Nhúng cái gì | Khoản trần | **+ tiêu đề Điều** | E4, T1 |
+| Xếp thứ tự | reranker toàn quyền | **RRF trọng số α = 0,7** | quét α + kiểm chéo hai nửa |
+| Số đoạn giao | 3 | **2** | bảng §3.4 báo cáo |
+| Ngân sách mỗi đoạn | 350 | **200** âm tiết | bảng §3.4 báo cáo |
+
+```
+s = α/(60 + dense_rank) + (1−α)/(60 + rerank_rank)
+```
+
+Build gói theo cấu hình chốt (CWD = gốc repo):
+
+```
+python pipeline/build_qa_packages_public_v8_tieu_de_khoan.py \
+  --rerank-path outputs/layer3/L3_rerank_public_title.jsonl \
+  --alpha 0.7 --max-contexts 2 --per-item 200 --expected-median 450
+```
+
+Chạy không tham số thì tái hiện cấu hình cũ. Tên file ra suy từ cấu hình để
+không thể dán nhầm nhãn giữa hai bản build khác rổ. Lý do từng lựa chọn, kèm
+các hướng **đã đóng**, nằm trong
+[`docs/BAO_CAO_THI_NGHIEM_RETRIEVAL.md`](docs/BAO_CAO_THI_NGHIEM_RETRIEVAL.md).
+
 ## 3 thư mục `data*` dễ nhầm
 
-Cả 3 đều nằm ở **gốc repo** (`../data/` v.v. tính từ thư mục này), dùng chung
-với `eval_harness/` và `qa_generator/` — code trong `retrieval/` tự resolve
-đúng đường dẫn qua `src/common/config.py` (`config.DATA_DIR`,
+Cả 3 đều nằm **ngoài repo**, ngang hàng với thư mục gốc (`../data/` v.v.) — code
+tự resolve đúng đường dẫn qua `src/common/config.py` (`config.DATA_DIR`,
 `config.DATA123_DIR`, `config.DATA_RETRIEVE_DIR`), không hardcode.
 
 | Thư mục | Nội dung | Dùng để |
@@ -62,11 +92,11 @@ python -c "import nltk; nltk.download('wordnet')"
 Repo này **không chứa dữ liệu** (BTC cấp + mọi file trung gian tự sinh, xem `.gitignore`) —
 tổng cộng ~2,5GB, không hợp để nằm trong git. Sau khi clone, cần tự tạo lại theo ĐÚNG THỨ TỰ
 sau (mỗi bước phụ thuộc bước trước, không nhảy cóc). Chạy tất cả lệnh dưới đây với
-**CWD = thư mục `retrieval/` này**:
+**CWD = gốc repo này**:
 
 | # | Bước | Script | Input cần có sẵn | Thời gian ước tính |
 |---|---|---|---|---|
-| 1 | Đặt dữ liệu gốc BTC vào `../data/` (gốc repo) | (thủ công — xin dữ liệu từ Trưởng nhóm/BTC, KHÔNG public) | — | — |
+| 1 | Đặt dữ liệu gốc BTC vào `../data/` (ngoài repo) | (thủ công — xin dữ liệu từ Trưởng nhóm/BTC, KHÔNG public) | — | — |
 | 2 | Parse Điều/Khoản | `pipeline/build_parsed_corpus.py` | `data/corpus/` | vài phút |
 | 3 | Build BM25 index | `pipeline/build_bm25_index.py` | `data/parsed_corpus.jsonl` | ~43 phút CPU |
 | 4 | Nhúng corpus (Layer 2) | `kaggle_layer2/embed_corpus_notebook.py` (chạy trên **Kaggle GPU**, xem `kaggle_layer2/README.md`) | `data/parsed_corpus.jsonl` | ~2 giờ GPU |
