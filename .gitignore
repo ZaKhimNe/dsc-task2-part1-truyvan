@@ -44,3 +44,6 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# Ke hoach vong private — giu rieng, cung quy uoc voi cac PLAN_* o tren.
+/docs/KE_HOACH_T1_T5_VA_PRIVATE.md

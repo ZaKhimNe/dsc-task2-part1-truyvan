@@ -58,6 +58,9 @@ class ContextItem(TypedDict):
     document_number: str  # "219/2013/TT-BTC" — "" nếu context không trích được số hiệu (~5.2% corpus, xem build_doc_number_index.py) hoặc số hiệu bị trùng (ambiguous)
     article: str  # "Điều X" — "" nếu doc_fallback (không có cấu trúc Điều)
     clause: str  # "khoản Y" — "" nếu dieu_fallback/doc_fallback (không có Khoản)
+    article_title: str  # tiêu đề Điều (P2, plan v2 §4) — "" nếu Điều không có tiêu đề (1,1%),
+    # hoặc `text == dieu_tieu_de` (5,6%), hoặc bị chặn bởi max_title_syllables.
+    # Generator có thể dùng ở Lead: gold thường là "Căn cứ khoản X Điều Y … quy định về {tiêu đề} như sau:"
     text: str
     retrieval_score: float  # ngoài spec Generator, thêm để họ tự lọc/trọng số nếu cần
 
@@ -103,6 +106,7 @@ def build_context_item(
     source_link: str,
     document_number: str,
     retrieval_score: float,
+    article_title: str = "",
 ) -> ContextItem:
     """Đóng gói 1 context (1 Khoản/Dieu đã chọn) thành `ContextItem` — dùng
     cho từng phần tử trong `contexts` list của `build_qa_package`."""
@@ -112,6 +116,7 @@ def build_context_item(
         document_number=document_number,
         article=_format_article(dieu_so),
         clause=_format_clause(khoan_so),
+        article_title=article_title,
         text=text,
         retrieval_score=retrieval_score,
     )

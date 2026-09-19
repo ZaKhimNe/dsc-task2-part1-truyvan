@@ -406,11 +406,43 @@ def rerank_units_khoan(
 # ---------------------------------------------------------------------------
 
 
-def build_corpus_embedding_index(corpus_unit_ids: list[str]) -> dict[str, int]:
+def build_corpus_embedding_index(
+    corpus_unit_ids: list[str], warn: bool = True
+) -> dict[str, int]:
     """{unit_id: vị trí (hàng) trong ma trận embedding} — cần để tra
     `corpus_embeddings[vị trí]` đúng unit, giống ý nghĩa
-    `build_khoan_position_index` nhưng cho embedding thay vì BM25Index."""
-    return {uid: i for i, uid in enumerate(corpus_unit_ids)}
+    `build_khoan_position_index` nhưng cho embedding thay vì BM25Index.
+
+    CẢNH BÁO — bảng này KHÔNG phản ánh đúng corpus khi có mã trùng.
+    `unit_id` không duy nhất: đo trên corpus thật (18/09, xem
+    `pipeline/measure_dup_unit_id_damage.py`) có 7.631 mã trùng / 46.106 hàng
+    mang mã trùng / 38.475 hàng bị che = 8,9%. Dict comprehension giữ bản
+    CUỐI CÙNG, nên tra `unit_id` của 7.631 mã đó trả về vector của khoản con
+    ANH EM (luôn cùng một Điều — 100%, 0 trường hợp xuyên văn bản; nhưng text
+    khác nhau ở 95,6%, Jaccard median 0,107).
+
+    Trước đây việc đè diễn ra IM LẶNG. Nay `warn=True` in ra số lượng để không
+    ai kết luận nhầm trên một bảng tra đã mất 8,9% corpus.
+
+    CÁCH ĐÚNG khi có sẵn vị trí hàng: dùng `UnitCandidate["row"]` mà
+    `dense_search_units` đã gắn, đừng tra ngược qua bảng này —
+    `rerank_units_dense` đã tự ưu tiên `row` nếu có.
+    """
+    index: dict[str, int] = {}
+    n_shadowed = 0
+    for i, uid in enumerate(corpus_unit_ids):
+        if uid in index:
+            n_shadowed += 1
+        index[uid] = i
+    if warn and n_shadowed:
+        print(
+            f"[build_corpus_embedding_index] CANH BAO: {n_shadowed} hang bi che "
+            f"({n_shadowed/max(len(corpus_unit_ids),1):.1%} corpus) vi trung unit_id; "
+            f"{len(corpus_unit_ids)} hang -> {len(index)} ma. "
+            f"Tra nguoc qua bang nay se lay HANG CUOI mang ma do.",
+            flush=True,
+        )
+    return index
 
 
 def rerank_units_dense(
@@ -436,7 +468,13 @@ def rerank_units_dense(
     positions: list[int] = []
     idx_by_position: list[int] = []
     for i, u in enumerate(units):
-        pos = corpus_embedding_index.get(u["unit_id"])
+        # Ưu tiên `row` mà `dense_search_units` đã gắn — đó là HÀNG THẬT đã khớp.
+        # Chỉ tra ngược qua `corpus_embedding_index` khi không có `row` (nhánh
+        # BM25/Expand), và khi đó chấp nhận rủi ro mã trùng: bảng tra trả hàng
+        # cuối, tức khoản con anh em cùng Điều (xem build_corpus_embedding_index).
+        pos = u.get("row")
+        if pos is None or pos < 0:
+            pos = corpus_embedding_index.get(u["unit_id"])
         if pos is not None:
             positions.append(pos)
             idx_by_position.append(i)
@@ -480,18 +518,38 @@ def rerank_units_dense(
 RRF_K = 60  # hằng số chuẩn của RRF (Cormack et al.) — làm mượt ảnh hưởng của hạng đầu
 
 
-def union_units(*unit_lists: list[UnitCandidate]) -> list[UnitCandidate]:
+def union_units(
+    *unit_lists: list[UnitCandidate], dedup_by_row: bool = False
+) -> list[UnitCandidate]:
     """Gộp nhiều list UnitCandidate ở CẤP UNIT (không collapse về văn bản),
     loại trùng theo `unit_id` — giữ bản GẶP ĐẦU TIÊN (list truyền vào trước
     được ưu tiên giữ metadata như doc_score).
 
     Thứ tự trả về không mang ý nghĩa xếp hạng — phải chấm điểm/fuse sau
-    (xem `fuse_units_rrf`)."""
-    merged: dict[str, UnitCandidate] = {}
+    (xem `fuse_units_rrf`).
+
+    `dedup_by_row=False` (MẶC ĐỊNH, giữ nguyên hành vi cũ): khoá là `unit_id`.
+    Vì `unit_id` không duy nhất, HAI KHOẢN CON KHÁC NHAU cùng một Điều mang
+    cùng mã sẽ chỉ giữ được MỘT suất trong rổ — bản kia bị vứt dù dense đã
+    chấm nó riêng. Đo trên rổ top-50 thật (`pipeline/measure_dup_impact_in_basket.py`,
+    7.000 câu): mất trung bình 0,55 suất/câu ở nhánh bare và 0,99 ở nhánh title;
+    22,5%/26,3% số câu mất ≥1 suất; đuôi nặng — 6,6% số câu mất ≥5 suất, tệ
+    nhất 40/50.
+
+    `dedup_by_row=True`: khoá là `row` khi ứng viên có (dense), lùi về `unit_id`
+    khi không có (BM25/Expand). Giữ được các khoản con anh em như ứng viên
+    riêng biệt. CHƯA bật mặc định vì đổi kích thước rổ là đổi thêm một biến —
+    bật khi chạy V9 và ghi rõ vào nhật ký."""
+    merged: dict = {}
     for units in unit_lists:
         for u in units:
-            if u["unit_id"] not in merged:
-                merged[u["unit_id"]] = u
+            if dedup_by_row:
+                row = u.get("row")
+                key = ("row", row) if row is not None and row >= 0 else ("uid", u["unit_id"])
+            else:
+                key = u["unit_id"]
+            if key not in merged:
+                merged[key] = u
     return list(merged.values())
 
 
@@ -625,16 +683,21 @@ def dense_search_units(
     units: list[UnitCandidate] = []
     for i in top_idx:
         uid = corpus_unit_ids[i]
-        units.append(
-            UnitCandidate(
-                unit_id=uid,
-                context_id=uid.split("_", 1)[0],
-                text="",
-                doc_score=float(scores[i]),
-                score=float(scores[i]),
-                unit_type="khoan",
-            )
+        u = UnitCandidate(
+            unit_id=uid,
+            context_id=uid.split("_", 1)[0],
+            text="",
+            doc_score=float(scores[i]),
+            score=float(scores[i]),
+            unit_type="khoan",
         )
+        # `row` = vị trí HÀNG thật trong ma trận embedding. Đây là danh tính DUY
+        # NHẤT của ứng viên; `unit_id` KHÔNG duy nhất (7.631 mã trùng, 46.106 hàng
+        # mang mã trùng — xem pipeline/measure_dup_unit_id_damage.py). Giữ `row` để
+        # `union_units(dedup_by_row=True)` và `rerank_units_dense` khỏi phải đoán lại
+        # qua bảng tra bị hỏng. Thêm ngoài TypedDict — không phá caller cũ.
+        u["row"] = int(i)
+        units.append(u)
     return units
 
 
