@@ -133,6 +133,9 @@ def parse_args() -> argparse.Namespace:
                    help=f"Số đoạn tối đa giao đi (mặc định {DEFAULT_MAX_CONTEXTS})")
     p.add_argument("--per-item", type=int, default=DEFAULT_PER_ITEM,
                    help=f"Ngân sách âm tiết mỗi đoạn (mặc định {DEFAULT_PER_ITEM})")
+    p.add_argument("--questions", choices=["public", "train", "private"], default="public",
+                   help="Nguồn câu hỏi. 'train' để build gói ĐO OFFLINE — train.json "
+                        "có reference_answer nên kernel tự chấm được, không cần LB.")
     p.add_argument("--expected-median", type=int, default=None,
                    help="Median độ dài TỔNG mong đợi, để kiểm sau build. Bỏ trống "
                         f"thì so với mốc V6 ({V6_MEDIAN_SYLLABLES}).")
@@ -156,11 +159,14 @@ def resolve_out_path(args: argparse.Namespace) -> Path:
         and args.alpha == DEFAULT_ALPHA
         and args.max_contexts == DEFAULT_MAX_CONTEXTS
         and args.per_item == DEFAULT_PER_ITEM
+        and args.questions == "public"
     )
     if is_legacy:
         return DEFAULT_OUT_PATH
+    # `--questions` vào tên dù stem rổ train/public vốn đã khác nhau — đừng dựa
+    # vào may. Gói đo offline và gói nộp bài không được phép trùng tên.
     return config.OUTPUTS_DIR / (
-        f"qa_packages_{args.rerank_path.stem}_a{args.alpha:g}"
+        f"qa_packages_{args.questions}_{args.rerank_path.stem}_a{args.alpha:g}"
         f"_k{args.max_contexts}_b{args.per_item}.json"
     )
 
@@ -355,6 +361,7 @@ def main() -> None:
     print("=== CAU HINH ===", flush=True)
     print(f"  rerank : {rerank_path}", flush=True)
     print(f"  md5    : {rerank_md5}", flush=True)
+    print(f"  cau hoi: {args.questions}", flush=True)
     print(f"  alpha  : {args.alpha}  (1=dense thuan, 0=rerank thuan, RRF_K={RRF_K})", flush=True)
     print(f"  k      : {args.max_contexts}   per_item: {args.per_item}   "
           f"target_total: {TARGET_TOTAL_SYLLABLES}", flush=True)
@@ -362,7 +369,11 @@ def main() -> None:
 
     print("\nDang load parsed_corpus + public-official.json + ket qua Layer 3...", flush=True)
     parsed_corpus = io_utils.load_parsed_corpus()
-    qa_public = io_utils.load_public_official()
+    qa_src = (
+        io_utils.load_train() if args.questions == "train"
+        else io_utils.load_private_official() if args.questions == "private"
+        else io_utils.load_public_official()
+    )
 
     with open(config.OUTPUTS_DIR / "doc_number_index.json", encoding="utf-8") as f:
         doc_number_index = json.load(f)["usable"]
@@ -377,6 +388,7 @@ def main() -> None:
     n_no_title = 0
     n_context_total = 0
     n_dup_id_used = 0
+    n_with_ref = 0
     context_counts: dict[int, int] = {}
     total_syls: list[int] = []
     per_context_syls: list[int] = []
@@ -386,8 +398,16 @@ def main() -> None:
         for line in f_in:
             r = json.loads(line)
             qid = r["qid"]
-            question = qa_public[qid]["question"]
-            reference_answer = qa_public[qid].get("answer")
+            if qid not in qa_src:
+                raise SystemExit(
+                    f"qid {qid} co trong ro nhung KHONG co trong nguon cau hoi "
+                    f"'{args.questions}'. Ro va nguon cau hoi lech nhau — kiem "
+                    f"--questions va --rerank-path co cung tap hay khong."
+                )
+            question = qa_src[qid]["question"]
+            reference_answer = qa_src[qid].get("answer")
+            if args.questions == "train":
+                n_with_ref += 1 if (reference_answer or "").strip() else 0
 
             ranked = []
             for u in blended_rank(r["ranked_units"], args.alpha):
@@ -491,6 +511,19 @@ def main() -> None:
     if not ok_title:
         print("      Doi chieu: corpus that chi 1,1% Dieu khong co tieu de va 5,6%", flush=True)
         print("      co text==tieu_de -> ky vong ~7%. Cao hon nhieu = bug tra Dieu.", flush=True)
+
+    # Goi train dung de DO OFFLINE — kernel tu cham bang score_if_available().
+    # Ham do tra ve "not_available_incomplete_reference" va KHONG cham gi ca neu
+    # chi mot dong thieu reference_answer. Bat o day, dung de phat hien sau 20
+    # phut GPU ma khong co diem nao.
+    if args.questions == "train":
+        ok_ref = n_with_ref == n
+        print(f"[{'OK ' if ok_ref else 'CHAN   '}] cau co reference_answer: "
+              f"{n_with_ref}/{n}", flush=True)
+        if not ok_ref:
+            print("      score_if_available() doi DU 100%. Thieu mot dong la no tra", flush=True)
+            print("      'not_available_incomplete_reference' va bo cham toan bo.", flush=True)
+            print("      Loc bo cac qid thieu dap an khoi ro truoc khi chay kernel.", flush=True)
 
     pct_dup = n_dup_id_used / n_context_total if n_context_total else 0.0
     print(f"[INFO   ] context mang unit_id TRUNG: {n_dup_id_used}/{n_context_total} "

@@ -50,6 +50,12 @@ def load_public_official() -> dict[str, QAItem]:
     return load_qa_set(config.PUBLIC_OFFICIAL_PATH)
 
 
+def load_private_official() -> dict[str, QAItem]:
+    """1.918 câu vòng private (BTC cấp 19/09). `answer` = None toàn bộ —
+    KHÔNG chấm được, chỉ dùng để sinh bài nộp."""
+    return load_qa_set(config.PRIVATE_OFFICIAL_PATH)
+
+
 def _name_from_link(link: str) -> str:
     """Fallback khi context['name'] is None — suy tên từ slug cuối URL.
 

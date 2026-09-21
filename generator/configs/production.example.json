@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "model_version": "v8_3_full_hard",
+  "model_key": "qwen3_17b",
+  "input_json": "inputs/example.json",
+  "output_root": "outputs",
+  "top_k": 3,
+  "seed": 2026,
+  "limit": null,
+  "prompt_mode": "v8_sft",
+  "decoding_mode": "greedy",
+  "enable_quality_retry": true,
+  "adapter": {
+    "local_path": "models/adapter",
+    "kaggle_slug": "YOUR_KAGGLE_USERNAME/legalqa-adapter"
+  }
+}

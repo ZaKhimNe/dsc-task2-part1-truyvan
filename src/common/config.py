@@ -26,7 +26,8 @@ CORPUS_DIR = DATA_DIR / "corpus"
 TRAIN_PATH = DATA_DIR / "train.json"
 WARMUP_PATH = DATA_DIR / "warmup.json"
 PUBLIC_OFFICIAL_PATH = DATA_DIR / "public-official.json"
-# PRIVATE_OFFICIAL_PATH sẽ thêm khi BTC cấp (xem docs/DATA_NOTES.md mục 5)
+PRIVATE_OFFICIAL_PATH = DATA_DIR / "private-official.json"  # BTC cấp 19/09/2026,
+# 1.918 câu, answer=null. Vòng private 19/09–23/09.
 
 OUTPUTS_DIR = MODULE_ROOT / "outputs"
 EXPERIMENTS_DIR = MODULE_ROOT / "experiments"

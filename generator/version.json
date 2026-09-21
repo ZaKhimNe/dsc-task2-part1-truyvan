@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "model_version": "v8_3_full_hard",
+  "display_name": "LegalQA V8.3 Full Hard",
+  "frozen_at": "2026-08-31T00:00:00+07:00",
+  "prompt_mode": "v8_sft",
+  "decoding_mode": "greedy",
+  "quality_retry": true,
+  "base_model": "Qwen/Qwen3-1.7B",
+  "adapter_dataset": "khihtn/dsc2026-legalqa-qlora-v8-adapter"
+}

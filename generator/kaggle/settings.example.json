@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "username": "YOUR_KAGGLE_USERNAME",
+  "kernel_slug": "legalqa-task2-production",
+  "kernel_title": "LegalQA Task2 Production",
+  "accelerator": "NvidiaTeslaT4",
+  "model_version": "v8_3_full_hard",
+  "input_json": "example.json",
+  "input_dataset_slug": "YOUR_KAGGLE_USERNAME/legalqa-inputs",
+  "input_dataset_title": "LegalQA Inputs",
+  "adapter_slug": "YOUR_KAGGLE_USERNAME/legalqa-adapter",
+  "top_k": 3,
+  "seed": 2026,
+  "limit": null
+}

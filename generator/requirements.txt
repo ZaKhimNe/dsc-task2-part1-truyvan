@@ -1,0 +1,10 @@
+torch>=2.4
+transformers>=4.51
+accelerate>=1.0
+safetensors>=0.4
+nltk>=3.9
+rouge-score>=0.1.2
+numpy>=1.26
+tqdm>=4.66
+peft>=0.17
+kaggle>=1.7,<2

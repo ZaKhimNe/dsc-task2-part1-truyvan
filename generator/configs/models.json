@@ -1,0 +1,12 @@
+{
+  "qwen3_17b": {
+    "model_id": "Qwen/Qwen3-1.7B",
+    "family": "qwen3",
+    "max_input_tokens": 5120,
+    "base_prompt_max_input_tokens": 3072,
+    "max_new_tokens": 256,
+    "targeted_lead_max_new_tokens": 96,
+    "targeted_conclusion_max_new_tokens": 160,
+    "expanded_targeted_conclusion_max_new_tokens": 768
+  }
+}

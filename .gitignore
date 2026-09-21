@@ -47,3 +47,25 @@ __pycache__/
 
 # Ke hoach vong private — giu rieng, cung quy uoc voi cac PLAN_* o tren.
 /docs/KE_HOACH_T1_T5_VA_PRIVATE.md
+
+# ---- Du lieu BTC va moi thu dan xuat — KHONG BAO GIO commit ----
+# Repo nay CONG KHAI. Du lieu BTC cap khong duoc tai phat tan, va bai nop
+# vong private khong duoc cong khai khi vong dang cham.
+/data/
+/data_retrieve/
+/generator/inputs/
+/generator/outputs/
+/generator/models/
+/generator/.cache/
+/generator/kaggle/build/
+/generator/kaggle/settings.json
+/generator/ChanTaooDe--main/
+*.jsonl
+*.npy
+*.pkl
+*.safetensors
+*.zip
+private-official.json
+public-official.json
+train.json
+submission.json
